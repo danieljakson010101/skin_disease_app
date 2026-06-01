@@ -1044,9 +1044,10 @@ select:focus { border-color:var(--rust); box-shadow:0 0 0 3px var(--rust-dim) }
 // ═══════════════════════════════════════════════════════
 //  Status
 // ═══════════════════════════════════════════════════════
+const API = 'https://web-production-a1b16.up.railway.app';
 async function checkStatus(){
   try {
-    const d = await (await fetch('/api/status')).json();
+    
     const setDot = (id,ok) => {
       document.getElementById(id).className = 'sdot '+(ok?'g':'r');
     };
