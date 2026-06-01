@@ -1042,12 +1042,16 @@ select:focus { border-color:var(--rust); box-shadow:0 0 0 3px var(--rust-dim) }
 
 <script>
 // ═══════════════════════════════════════════════════════
-//  Status
+//  API base — points to Railway backend
 // ═══════════════════════════════════════════════════════
 const API = 'https://web-production-a1b16.up.railway.app';
+
+// ═══════════════════════════════════════════════════════
+//  Status
+// ═══════════════════════════════════════════════════════
 async function checkStatus(){
   try {
-    
+    const d = await (await fetch(API + '/api/status')).json();
     const setDot = (id,ok) => {
       document.getElementById(id).className = 'sdot '+(ok?'g':'r');
     };
@@ -1106,7 +1110,7 @@ runBtn.addEventListener('click', async () => {
   fd.append('aug_zoom',      document.getElementById('aug_zoom').checked   ? '1':'0');
 
   try {
-    const r = await fetch('/api/predict', { method:'POST', body:fd });
+    const r = await fetch(API + '/api/predict', { method:'POST', body:fd });
     const d = await r.json();
     if(!r.ok){ showErr(d.error || 'Server error'); return; }
     renderResults(d);
@@ -1206,7 +1210,7 @@ document.getElementById('trainBtn').addEventListener('click', async () => {
   document.getElementById('trainBar').style.width = '4%';
 
   try {
-    const r = await fetch('/api/train', {
+    const r = await fetch(API + '/api/train', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     });
@@ -1222,7 +1226,7 @@ document.getElementById('trainBtn').addEventListener('click', async () => {
 function pollTrain(){
   trainPoll = setInterval(async () => {
     try {
-      const d = await (await fetch('/api/train/status/' + trainJobId)).json();
+      const d = await (await fetch(API + '/api/train/status/' + trainJobId)).json();
       if(d.log && d.log.length){
         const tl = document.getElementById('trainLog');
         tl.innerHTML = d.log.map(([s,m]) => `<div class="tl ${s}">${m}</div>`).join('');
@@ -1302,7 +1306,7 @@ function scheduleLive(){
         fd.append('enhancement',   document.getElementById('enhancement').value);
         fd.append('normalization', document.getElementById('normalization').value);
         fd.append('aug_flip','0'); fd.append('aug_rotate','0'); fd.append('aug_zoom','0');
-        const r = await fetch('/api/predict', {method:'POST', body:fd});
+        const r = await fetch(API + '/api/predict', {method:'POST', body:fd});
         const d = await r.json();
         if(r.ok){
           document.getElementById('live-result').textContent = d.prediction;
@@ -1342,7 +1346,7 @@ function clearLog(){
 // Pre-load distribution chart
 window.addEventListener('load', async () => {
   try {
-    const d = await (await fetch('/api/distribution')).json();
+    const d = await (await fetch(API + '/api/distribution')).json();
     if(d.chart) document.getElementById('cDist').src = 'data:image/png;base64,' + d.chart;
   } catch(_){}
 });
