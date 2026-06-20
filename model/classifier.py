@@ -2,6 +2,7 @@
 classifier.py
 =============
 Skin Disease Pattern Recognition — Steps 2 & 3.
+Models: CNN (Keras, real convolutional network) and KNN (color hist + LBP).
 
 • If trained model files exist  → uses real predictions
 • If dataset folder exists       → trains and saves models
@@ -12,22 +13,24 @@ import cv2, numpy as np, io, base64, os, glob, joblib, time
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import seaborn as sns
-from collections import Counter
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, precision_score,
-                             recall_score, f1_score, classification_report)
+                             recall_score, f1_score)
+
+import tensorflow as tf
+from tensorflow.keras import layers, models as keras_models
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR   = os.path.join(BASE_DIR, "model", "saved")
 DATASET_DIR = os.path.join(BASE_DIR, "dataset")
 os.makedirs(MODEL_DIR, exist_ok=True)
+
+# Models supported by this project (Step 3 — focused on two techniques)
+MODEL_TYPES = ["cnn", "knn"]
 
 # ── Class list (matches Kaggle folder names) ───────────────────────────────────
 CLASSES = [
@@ -130,13 +133,8 @@ def apply_augmentation(img, flip=False, rotate=True, zoom=False):
     return out
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Step 3 — Feature extraction
+#  Step 3 — Feature extraction (KNN only — CNN consumes raw pixels)
 # ══════════════════════════════════════════════════════════════════════════════
-
-def extract_hog(img):
-    gray = cv2.cvtColor(cv2.resize(img,(128,128)), cv2.COLOR_BGR2GRAY)
-    hog  = cv2.HOGDescriptor((128,128),(16,16),(8,8),(8,8),9)
-    return hog.compute(gray).flatten()
 
 def extract_lbp(img, radius=2, n_points=16):
     gray = cv2.cvtColor(cv2.resize(img,(64,64)), cv2.COLOR_BGR2GRAY).astype(np.float32)
@@ -162,19 +160,22 @@ def extract_color_hist(img, bins=32):
         feats.extend(cv2.normalize(h,h).flatten())
     return np.array(feats, dtype=np.float32)
 
-def extract_cnn_proxy(img):
-    hog   = extract_hog(img)[:512]
-    color = extract_color_hist(img)
-    return np.concatenate([hog, color]).astype(np.float32)
+def extract_knn_features(img):
+    return np.concatenate([extract_color_hist(img), extract_lbp(img)]).astype(np.float32)
 
 def get_features(img, model_type):
-    dispatch = {
-        "cnn": extract_cnn_proxy,
-        "svm": extract_hog,
-        "rf":  extract_lbp,
-        "knn": lambda i: np.concatenate([extract_color_hist(i), extract_lbp(i)]),
-    }
-    return dispatch[model_type](img)
+    """For KNN: hand-crafted features. For CNN: raw normalized pixel array."""
+    if model_type == "knn":
+        return extract_knn_features(img)
+    elif model_type == "cnn":
+        return cnn_preprocess_image(img)
+    raise ValueError(f"Unknown model_type: {model_type}")
+
+def cnn_preprocess_image(img, size=(96, 96)):
+    """Resize + scale to [0,1] float32, ready for the Keras CNN input layer."""
+    resized = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
+    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+    return (rgb.astype(np.float32) / 255.0)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Dataset loading
@@ -188,10 +189,10 @@ def _find_dataset_split():
             subdirs = [d for d in os.listdir(p) if os.path.isdir(os.path.join(p,d))]
             if len(subdirs) >= 5:
                 return p
-    # Maybe dataset IS the class-folder level
-    subdirs = [d for d in os.listdir(DATASET_DIR) if os.path.isdir(os.path.join(DATASET_DIR,d))]
-    if len(subdirs) >= 5:
-        return DATASET_DIR
+    if os.path.isdir(DATASET_DIR):
+        subdirs = [d for d in os.listdir(DATASET_DIR) if os.path.isdir(os.path.join(DATASET_DIR,d))]
+        if len(subdirs) >= 5:
+            return DATASET_DIR
     return None
 
 def get_real_class_counts():
@@ -207,11 +208,11 @@ def get_real_class_counts():
         if n > 0: counts[cls] = n
     return counts if counts else None
 
-def load_dataset_features(model_type, enh_method, norm_method,
-                          max_per_class=80, log_fn=None):
+def load_dataset_arrays(model_type, enh_method, norm_method,
+                        max_per_class=80, log_fn=None):
     """
-    Load images from the dataset folder, extract features, return X, y, classes.
-    max_per_class caps loading so training is fast even on large datasets.
+    Load images from the dataset folder, apply preprocessing, return X, y, classes.
+    X is either feature vectors (KNN) or raw pixel arrays (CNN).
     """
     base = _find_dataset_split()
     if not base: return None, None, None
@@ -248,52 +249,120 @@ def load_dataset_features(model_type, enh_method, norm_method,
     return np.array(X, dtype=np.float32), np.array(y), class_names
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  CNN architecture (Step 3a — real convolutional network)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def build_cnn(input_shape=(96, 96, 3), num_classes=22):
+    model = keras_models.Sequential([
+        layers.Input(shape=input_shape),
+
+        layers.Conv2D(32, (3, 3), activation="relu", padding="same"),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+
+        layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+
+        layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+
+        layers.GlobalAveragePooling2D(),
+        layers.Dense(128, activation="relu"),
+        layers.Dropout(0.4),
+        layers.Dense(num_classes, activation="softmax"),
+    ])
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+    return model
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Model training & saving
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _model_path(model_type, enh, norm):
-    return os.path.join(MODEL_DIR, f"{model_type}_{enh}_{norm}.pkl")
+    ext = "keras" if model_type == "cnn" else "pkl"
+    return os.path.join(MODEL_DIR, f"{model_type}_{enh}_{norm}.{ext}")
 
 def _meta_path(model_type, enh, norm):
     return os.path.join(MODEL_DIR, f"{model_type}_{enh}_{norm}_meta.pkl")
 
-def train_and_save(model_type, enh_method, norm_method, log_fn=None):
+def train_and_save(model_type, enh_method, norm_method, log_fn=None, epochs=15):
     """
     Train model on dataset, save to disk, return metrics dict.
     Returns None if no dataset available.
     """
+    if model_type not in MODEL_TYPES:
+        raise ValueError(f"This project only supports: {MODEL_TYPES}")
+
     if log_fn: log_fn("ok", "Loading dataset images…")
-    X, y, classes = load_dataset_features(model_type, enh_method, norm_method,
-                                          max_per_class=80, log_fn=log_fn)
+    X, y, classes = load_dataset_arrays(model_type, enh_method, norm_method,
+                                        max_per_class=80, log_fn=log_fn)
     if X is None or len(X) < 10:
         if log_fn: log_fn("err", "Dataset not found or too few images.")
         return None
 
     if log_fn: log_fn("ok", f"Total samples: {len(X)} across {len(classes)} classes")
 
+    # Encode string labels -> integer indices (needed by both paths)
+    label_to_idx = {c: i for i, c in enumerate(classes)}
+    y_idx = np.array([label_to_idx[label] for label in y])
+
     X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+        X, y_idx, test_size=0.2, random_state=42, stratify=y_idx
     )
 
-    clf_map = {
-        "svm": SVC(kernel="rbf", C=10, gamma="scale", probability=True),
-        "rf":  RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=42),
-        "knn": KNeighborsClassifier(n_neighbors=7, n_jobs=-1),
-        "cnn": SVC(kernel="rbf", C=10, gamma="scale", probability=True),  # CNN-proxy
-    }
+    if model_type == "cnn":
+        if log_fn: log_fn("ok", f"Building CNN for {len(classes)} classes…")
+        model = build_cnn(input_shape=X.shape[1:], num_classes=len(classes))
 
-    pipe = Pipeline([
-        ("scaler", MinMaxScaler()),
-        ("clf",    clf_map[model_type])
-    ])
+        if log_fn: log_fn("ok", f"Training CNN on {len(X_tr)} samples for {epochs} epochs…")
+        t0 = time.time()
 
-    if log_fn: log_fn("ok", f"Training {model_type.upper()} on {len(X_tr)} samples…")
-    t0 = time.time()
-    pipe.fit(X_tr, y_tr)
-    elapsed = round(time.time()-t0, 1)
-    if log_fn: log_fn("ok", f"Training complete in {elapsed}s")
+        history = {"acc": [], "val_acc": [], "loss": []}
 
-    y_pred = pipe.predict(X_te)
+        class _LogCallback(tf.keras.callbacks.Callback):
+            def on_epoch_end(self, epoch, logs=None):
+                logs = logs or {}
+                history["acc"].append(logs.get("accuracy", 0))
+                history["val_acc"].append(logs.get("val_accuracy", 0))
+                history["loss"].append(logs.get("loss", 0))
+                if log_fn:
+                    log_fn("ok", f"  Epoch {epoch+1}/{epochs} — "
+                                 f"acc:{logs.get('accuracy',0)*100:.1f}% "
+                                 f"val_acc:{logs.get('val_accuracy',0)*100:.1f}% "
+                                 f"loss:{logs.get('loss',0):.3f}")
+
+        model.fit(
+            X_tr, y_tr,
+            validation_data=(X_te, y_te),
+            epochs=epochs, batch_size=16, verbose=0,
+            callbacks=[_LogCallback()],
+        )
+        elapsed = round(time.time()-t0, 1)
+        if log_fn: log_fn("ok", f"Training complete in {elapsed}s")
+
+        y_pred = np.argmax(model.predict(X_te, verbose=0), axis=1)
+        pipe = model  # keras model acts as the "pipe" for this branch
+
+    else:  # knn
+        if log_fn: log_fn("ok", f"Training KNN on {len(X_tr)} samples…")
+        t0 = time.time()
+        pipe = Pipeline([
+            ("scaler", MinMaxScaler()),
+            ("clf", KNeighborsClassifier(n_neighbors=7, n_jobs=-1)),
+        ])
+        pipe.fit(X_tr, y_tr)
+        elapsed = round(time.time()-t0, 1)
+        if log_fn: log_fn("ok", f"Training complete in {elapsed}s")
+
+        y_pred = pipe.predict(X_te)
+        history = None
+
     acc  = round(accuracy_score(y_te, y_pred)*100, 1)
     prec = round(precision_score(y_te, y_pred, average="weighted", zero_division=0)*100, 1)
     rec  = round(recall_score(y_te, y_pred, average="weighted", zero_division=0)*100, 1)
@@ -303,9 +372,14 @@ def train_and_save(model_type, enh_method, norm_method, log_fn=None):
 
     metrics = {"acc":acc, "prec":prec, "rec":rec, "f1":f1}
     meta    = {"classes": classes, "metrics": metrics,
-               "model_type": model_type, "enh": enh_method, "norm": norm_method}
+               "model_type": model_type, "enh": enh_method, "norm": norm_method,
+               "history": history}
 
-    joblib.dump(pipe, _model_path(model_type, enh_method, norm_method))
+    if model_type == "cnn":
+        model.save(_model_path(model_type, enh_method, norm_method))
+    else:
+        joblib.dump(pipe, _model_path(model_type, enh_method, norm_method))
+
     joblib.dump(meta, _meta_path(model_type, enh_method, norm_method))
     if log_fn: log_fn("ok", "Model saved to disk ✓")
     return metrics
@@ -314,25 +388,28 @@ def load_saved_model(model_type, enh_method, norm_method):
     mp = _model_path(model_type, enh_method, norm_method)
     mm = _meta_path(model_type, enh_method, norm_method)
     if os.path.exists(mp) and os.path.exists(mm):
-        return joblib.load(mp), joblib.load(mm)
+        meta = joblib.load(mm)
+        if model_type == "cnn":
+            pipe = tf.keras.models.load_model(mp)
+        else:
+            pipe = joblib.load(mp)
+        return pipe, meta
     return None, None
 
-def predict_with_model(pipe, meta, features):
+def predict_with_model(pipe, meta, features, model_type):
     """Return (prediction_str, confidence_0_1, top5_list)."""
     classes = meta["classes"]
-    feat2d  = features.reshape(1, -1)
-    if hasattr(pipe["clf"], "predict_proba"):
+
+    if model_type == "cnn":
+        feat4d = features.reshape(1, *features.shape)
+        probs_raw = pipe.predict(feat4d, verbose=0)[0]
+        probs = probs_raw  # already aligned to `classes` order used at training time
+    else:
+        feat2d = features.reshape(1, -1)
         probs_raw = pipe.predict_proba(feat2d)[0]
-        # align to all CLASSES (some may be missing from training)
         probs = np.zeros(len(classes))
         for i, c in enumerate(pipe.classes_):
-            idx = classes.index(c) if c in classes else -1
-            if idx >= 0: probs[idx] = probs_raw[i]
-    else:
-        pred_cls = pipe.predict(feat2d)[0]
-        probs = np.zeros(len(classes))
-        idx = classes.index(pred_cls) if pred_cls in classes else 0
-        probs[idx] = 1.0
+            probs[c] = probs_raw[i]  # classes are integer-encoded indices here
 
     indexed = sorted(zip(classes, probs), key=lambda x: x[1], reverse=True)
     top5 = [{"name": DISPLAY_NAMES.get(c, c.replace("_"," ")),
@@ -344,8 +421,6 @@ def predict_with_model(pipe, meta, features):
 # ══════════════════════════════════════════════════════════════════════════════
 
 MODEL_BENCHMARKS = {
-    "svm": {"acc":78.3,"prec":76.1,"rec":74.8,"f1":75.4},
-    "rf":  {"acc":72.6,"prec":70.4,"rec":69.1,"f1":69.7},
     "knn": {"acc":65.1,"prec":63.2,"rec":61.8,"f1":62.5},
     "cnn": {"acc":91.4,"prec":89.7,"rec":88.2,"f1":88.9},
 }
@@ -362,10 +437,11 @@ def _simulated_metrics(model_type, enh, norm):
     }
 
 def _simulated_probs(features):
-    seed = int(abs(features[:5].sum())*1e4) % (2**31)
+    flat = features.ravel()
+    seed = int(abs(flat[:5].sum())*1e4) % (2**31)
     rng  = np.random.RandomState(seed)
     base = rng.dirichlet(np.ones(len(CLASSES))*0.5)
-    energy = np.abs(features[:len(CLASSES)])
+    energy = np.abs(flat[:len(CLASSES)])
     if len(energy) < len(CLASSES):
         energy = np.pad(energy,(0,len(CLASSES)-len(energy)))
     raw = energy*0.3 + base*0.7
@@ -381,7 +457,6 @@ def plot_class_distribution():
     counts_dict = real if real else SIMULATED_COUNTS
     names  = list(counts_dict.keys())
     counts = list(counts_dict.values())
-    # sort descending
     pairs = sorted(zip(names, counts), key=lambda x: x[1], reverse=True)
     names, counts = zip(*pairs)
     colors = plt.cm.viridis(np.linspace(0.2, 0.85, len(names)))
@@ -417,23 +492,23 @@ def plot_pixel_distribution(img_orig, img_proc):
     return fig_to_b64(fig)
 
 def plot_model_comparison(enh, norm):
-    models = ["cnn","svm","rf","knn"]
-    labels = ["CNN","SVM","Random Forest","KNN"]
+    models_ = MODEL_TYPES
+    labels = ["CNN", "KNN"]
     accs, f1s = [], []
-    for m in models:
+    for m in models_:
         mp, mm = load_saved_model(m, enh, norm)
         if mm: mt = mm["metrics"]
         else:  mt = _simulated_metrics(m, enh, norm)
         accs.append(mt["acc"]); f1s.append(mt["f1"])
 
-    x = np.arange(len(models))
-    fig, ax = plt.subplots(figsize=(7, 3.5))
+    x = np.arange(len(models_))
+    fig, ax = plt.subplots(figsize=(6, 3.5))
     _set_dark(fig, ax)
     ax.bar(x-0.2, accs, 0.38, label="Accuracy (%)", color="#2e7d5e")
     ax.bar(x+0.2, f1s,  0.38, label="F1-Score (%)",  color="#5ecba1")
     ax.set_xticks(x); ax.set_xticklabels(labels)
     ax.set_ylim(50,100); ax.set_ylabel("Score (%)")
-    ax.set_title("Step 3b — Model Comparison", fontweight="bold")
+    ax.set_title("Step 3b — Model Comparison (CNN vs KNN)", fontweight="bold")
     ax.legend(fontsize=9); ax.grid(axis="y", alpha=0.2, color="#30363d")
     ax.spines[["top","right"]].set_visible(False)
     fig.tight_layout()
@@ -462,12 +537,24 @@ def plot_preprocessing_comparison(model_type):
     fig.tight_layout()
     return fig_to_b64(fig)
 
-def plot_training_curves(model_type, final_acc):
-    epochs = np.arange(1, 31)
-    rng    = np.random.RandomState(42)
-    t_acc  = np.clip(40+epochs*(final_acc-40)/30+rng.randn(30)*1.5, 0, 100)
-    v_acc  = np.clip(35+epochs*(final_acc-44)/30+rng.randn(30)*2.0, 0, 100)
-    t_loss = np.maximum(0.05, 1.8-epochs*0.055+rng.randn(30)*0.04)
+def plot_training_curves(model_type, enh_method, norm_method, final_acc):
+    """Use real Keras history if available (CNN), else a synthetic illustrative curve."""
+    _, meta = load_saved_model(model_type, enh_method, norm_method)
+    history = meta.get("history") if meta else None
+
+    if history and history.get("acc"):
+        epochs = np.arange(1, len(history["acc"]) + 1)
+        t_acc = np.array(history["acc"]) * 100
+        v_acc = np.array(history["val_acc"]) * 100
+        t_loss = np.array(history["loss"])
+        real_data = True
+    else:
+        epochs = np.arange(1, 16)
+        rng    = np.random.RandomState(42)
+        t_acc  = np.clip(40+epochs*(final_acc-40)/15+rng.randn(15)*1.5, 0, 100)
+        v_acc  = np.clip(35+epochs*(final_acc-44)/15+rng.randn(15)*2.0, 0, 100)
+        t_loss = np.maximum(0.05, 1.8-epochs*0.1+rng.randn(15)*0.04)
+        real_data = False
 
     fig, ax1 = plt.subplots(figsize=(7, 3.5))
     ax2 = ax1.twinx()
@@ -482,7 +569,8 @@ def plot_training_curves(model_type, final_acc):
     ax2.plot(epochs, t_loss,"#e74c3c", lw=1.5, alpha=0.7, label="Train loss")
     ax1.set_xlabel("Epoch"); ax1.set_ylabel("Accuracy (%)", color="#2e7d5e")
     ax2.set_ylabel("Loss", color="#e74c3c")
-    ax1.set_title("Step 3b — Training Curves", fontweight="bold")
+    suffix = "" if real_data else " (illustrative — no saved history)"
+    ax1.set_title(f"Step 3b — Training Curves{suffix}", fontweight="bold", fontsize=10)
     h1,l1=ax1.get_legend_handles_labels(); h2,l2=ax2.get_legend_handles_labels()
     ax1.legend(h1+h2, l1+l2, fontsize=9)
     ax1.grid(alpha=0.2, color="#30363d")
@@ -496,6 +584,9 @@ def plot_training_curves(model_type, final_acc):
 
 def run_pipeline(image_bytes, model_type, norm_method, enh_method,
                  aug_flip, aug_rotate, aug_zoom):
+    if model_type not in MODEL_TYPES:
+        raise ValueError(f"This project only supports models: {MODEL_TYPES}")
+
     log = []
 
     # Step 1 — load
@@ -516,15 +607,15 @@ def run_pipeline(image_bytes, model_type, norm_method, enh_method,
     log.append(("ok","Step 2c — Pixel distribution chart generated"))
 
     # Step 3 — features
-    feat_names = {"cnn":"CNN proxy embeddings","svm":"HOG descriptor",
-                  "rf":"LBP histogram","knn":"Color hist + LBP"}
+    feat_names = {"cnn":"Raw normalized pixels (96×96×3)","knn":"Color hist + LBP"}
     features = get_features(img_aug, model_type)
-    log.append(("ok", f"Step 3 — Features: {feat_names[model_type]} ({len(features)}-dim)"))
+    dim_desc = f"{features.shape}" if model_type == "cnn" else f"{len(features)}-dim"
+    log.append(("ok", f"Step 3 — Features: {feat_names[model_type]} ({dim_desc})"))
 
     # Step 3 — inference
     pipe, meta = load_saved_model(model_type, enh_method, norm_method)
-    if pipe and meta:
-        pred_name, conf, top5 = predict_with_model(pipe, meta, features)
+    if pipe is not None and meta:
+        pred_name, conf, top5 = predict_with_model(pipe, meta, features, model_type)
         metrics = meta["metrics"]
         log.append(("ok", f"Step 3 — REAL model prediction: {pred_name} ({conf*100:.1f}%)"))
         mode = "real"
@@ -556,7 +647,7 @@ def run_pipeline(image_bytes, model_type, norm_method, enh_method,
             "pixel":           pixel_chart,
             "model_compare":   plot_model_comparison(enh_method, norm_method),
             "preproc_compare": plot_preprocessing_comparison(model_type),
-            "training":        plot_training_curves(model_type, metrics["acc"]),
+            "training":        plot_training_curves(model_type, enh_method, norm_method, metrics["acc"]),
         },
         "preprocessed_img": img_to_b64(img_aug),
     }

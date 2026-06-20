@@ -1,0 +1,79 @@
+<div class="panel ethics-panel" id="ethicsPanelWrap">
+  <div class="panel-title">
+    Ethical &amp; Practical Reflection <span class="step-tag">Step 5</span>
+  </div>
+
+  <div class="ethics-grid">
+
+    <div class="ethics-card">
+      <div class="ec-icon">⚖️</div>
+      <h4>Bias &amp; Fairness</h4>
+      <p>
+        Dermatology image datasets are known to skew toward lighter skin tones, which
+        can depress accuracy for darker skin and for under-represented conditions
+        such as <em>Vasculitis</em> or <em>Vascular Tumors</em> that have far fewer
+        training samples than common classes like <em>Acne</em> or <em>Tinea</em>.
+        A model trained on this distribution risks confidently mis-classifying
+        exactly the patients it has seen least — the opposite of where caution
+        is most needed.
+      </p>
+    </div>
+
+    <div class="ethics-card">
+      <div class="ec-icon">🔒</div>
+      <h4>Privacy</h4>
+      <p>
+        Skin images are sensitive biometric and health data. Webcam capture in
+        particular raises the stakes: frames may unintentionally include faces,
+        backgrounds, or other identifying context. This prototype keeps inference
+        local to the session and does not persist uploaded or captured images
+        beyond what is needed to render a result.
+      </p>
+    </div>
+
+    <div class="ethics-card">
+      <div class="ec-icon">🔍</div>
+      <h4>Transparency</h4>
+      <p>
+        The system surfaces its full pipeline — enhancement method, normalization,
+        feature type, model, and a Top-5 probability breakdown — rather than a
+        single opaque label. The interface also distinguishes <strong>real</strong>
+        model predictions from <strong>simulated</strong> demo output whenever a
+        trained model file is unavailable, so users are never misled about the
+        basis for a result.
+      </p>
+    </div>
+
+    <div class="ethics-card">
+      <div class="ec-icon">📡</div>
+      <h4>Live-Stream Deployment Risks</h4>
+      <p>
+        Real-time webcam classification of medical conditions invites misuse:
+        unsupervised self-diagnosis, false reassurance from a wrong "benign" call,
+        or false alarm from a wrong "cancer" call, and informal surveillance if a
+        camera stream is repurposed to scan people without consent. Continuous
+        inference can also amplify a single bad frame (motion blur, poor lighting)
+        into a confidently wrong streamed result.
+      </p>
+    </div>
+
+    <div class="ethics-card ethics-card-wide">
+      <div class="ec-icon">🛡️</div>
+      <h4>Mitigation Strategies</h4>
+      <ul class="ethics-list">
+        <li>Always present the model's confidence and Top-5 alternatives, never just the top label, so low-confidence calls are visibly uncertain rather than authoritative.</li>
+        <li>Label every prediction with its mode (<code>real</code> vs <code>simulated</code>) and the exact preprocessing/model configuration used, for full reproducibility and accountability.</li>
+        <li>Treat the tool as a decision-support / educational prototype only — add an explicit on-screen disclaimer that it is not a diagnostic device and does not replace a dermatologist.</li>
+        <li>Average predictions across several consecutive webcam frames before surfacing a "stable" result, reducing the impact of any single noisy frame.</li>
+        <li>Require explicit user consent before activating the camera, and stop the stream and discard frames immediately when the user clicks "Stop."</li>
+        <li>Before any real deployment, audit per-class performance (not just overall accuracy) to catch the kind of skewed, low-sample-class weaknesses described above.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="ethics-quote">
+    "Raise your words, not voice. It is rain that grows flowers, not thunder."
+    <span>— Rumi</span>
+  </div>
+</div>

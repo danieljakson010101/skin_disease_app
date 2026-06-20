@@ -1,0 +1,333 @@
+/* ═══════════════════════════════════════════════════════
+   Additions for results.html / webcam.html / ethics.html
+   Uses tokens defined in base.css (--cream, --ink, --rust, --sage, etc.)
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Results: empty state ─────────────────────────────── */
+.results-empty {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--ink3);
+}
+.results-empty .re-icon { font-size: 38px; display:block; margin-bottom:14px; }
+.results-empty p { font-size: 14px; }
+
+/* ── Pipeline log lines (shared by results + webcam) ──── */
+.log-line {
+  font-family: var(--ff-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  padding: 2px 0;
+  color: var(--ink2);
+}
+.log-line .log-ico { display:inline-block; width:18px; color: var(--sage); }
+.log-line.err { color: var(--rust); }
+.log-line.err .log-ico { color: var(--rust); }
+
+/* ── Prediction card ───────────────────────────────────── */
+.predict-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  margin-bottom: 22px;
+}
+.predict-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.pc-eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  display: inline-block;
+  margin-bottom: 6px;
+}
+.pc-eyebrow.mode-real { color: var(--sage); }
+.pc-eyebrow.mode-sim  { color: var(--rust); }
+.predict-label h3 {
+  font-family: var(--ff-head);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.predict-conf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pc-ring {
+  --pct: 0;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: conic-gradient(var(--rust) calc(var(--pct) * 1%), var(--rust-light) 0);
+  position: relative;
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pc-ring::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--white);
+}
+.pc-ring span { position: relative; z-index: 1; }
+.pc-conf-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink3);
+}
+
+.processed-row { margin-top: 18px; }
+.processed-thumb {
+  position: relative;
+  display: inline-block;
+}
+.processed-thumb img {
+  width: 96px; height: 96px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.pt-lbl {
+  display: block;
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* ── Top 5 ──────────────────────────────────────────────── */
+.block-title {
+  font-family: var(--ff-head);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.top5-block, .metrics-block, .charts-block { margin-bottom: 26px; }
+
+.top5-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 50px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.t5-name { color: var(--ink2); }
+.t5-bar-track {
+  background: var(--paper);
+  border-radius: 6px;
+  height: 8px;
+  overflow: hidden;
+}
+.t5-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--sage), var(--rust));
+  border-radius: 6px;
+  transition: width .4s ease;
+}
+.t5-pct {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--ink3);
+  text-align: right;
+}
+
+/* ── Metrics grid ──────────────────────────────────────── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.metric-cell {
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  padding: 14px 8px;
+  text-align: center;
+}
+.mc-val {
+  display: block;
+  font-family: var(--ff-head);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--rust);
+}
+.mc-lbl {
+  font-size: 11px;
+  color: var(--ink3);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+/* ── Chart cards ───────────────────────────────────────── */
+.chart-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.chart-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+  margin-bottom: 10px;
+}
+.chart-img {
+  width: 100%;
+  border-radius: var(--r-sm);
+  display: block;
+}
+
+/* ── Webcam panel ─────────────────────────────────────── */
+.webcam-panel { margin-top: 28px; }
+.webcam-sub {
+  color: var(--ink3);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  max-width: 720px;
+}
+.webcam-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 860px) {
+  .webcam-grid { grid-template-columns: 1fr; }
+}
+.webcam-frame {
+  position: relative;
+  background: var(--ink);
+  border-radius: var(--r);
+  overflow: hidden;
+  aspect-ratio: 4/3;
+}
+.webcam-frame video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.webcam-overlay {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(26,22,18,.55);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-family: var(--ff-mono);
+}
+.wc-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ink3);
+}
+.wc-dot.live {
+  background: var(--rust);
+  animation: blink 1.4s infinite;
+}
+.webcam-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.webcam-controls .btn { flex: 1; }
+.wc-predict-card { margin-bottom: 18px; }
+.webcam-stream-log .log-panel {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* ── Ethics panel ──────────────────────────────────────── */
+.ethics-panel { margin-top: 28px; }
+.ethics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+@media (max-width: 860px) {
+  .ethics-grid { grid-template-columns: 1fr; }
+}
+.ethics-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+}
+.ethics-card-wide { grid-column: 1 / -1; }
+.ec-icon { font-size: 22px; margin-bottom: 8px; }
+.ethics-card h4 {
+  font-family: var(--ff-head);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.ethics-card p {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink2);
+}
+.ethics-list {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.ethics-list li {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink2);
+  padding-left: 20px;
+  position: relative;
+}
+.ethics-list li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--rust);
+}
+.ethics-list code {
+  font-family: var(--ff-mono);
+  background: var(--paper);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.ethics-quote {
+  margin-top: 28px;
+  padding: 18px 22px;
+  border-left: 3px solid var(--rust);
+  background: var(--rust-light);
+  font-family: var(--ff-head);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink2);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.ethics-quote span {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--ff-body);
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink3);
+}

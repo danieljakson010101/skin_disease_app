@@ -1,0 +1,89 @@
+<div class="panel" id="resultsPanel">
+  <div class="panel-title">
+    Results <span class="step-tag">Step 3–4</span>
+  </div>
+
+  <!-- Empty state -->
+  <div class="results-empty" id="resultsEmpty">
+    <span class="re-icon">🩺</span>
+    <p>Upload an image and run the pipeline to see predictions here.</p>
+  </div>
+
+  <!-- Filled state (hidden until first run) -->
+  <div id="resultsBody" style="display:none">
+
+    <!-- Pipeline log -->
+    <div class="log-panel" id="pipelineLog" style="display:none"></div>
+
+    <!-- Prediction card -->
+    <div class="predict-card" id="predictCard">
+      <div class="predict-top">
+        <div class="predict-label">
+          <span class="pc-eyebrow" id="pcMode">— mode —</span>
+          <h3 id="pcPrediction">—</h3>
+        </div>
+        <div class="predict-conf">
+          <div class="pc-ring" id="pcRing">
+            <span id="pcConfNum">0%</span>
+          </div>
+          <span class="pc-conf-lbl">confidence</span>
+        </div>
+      </div>
+
+      <div class="processed-row">
+        <div class="processed-thumb">
+          <img id="pcProcessedImg" alt="preprocessed"/>
+          <span class="pt-lbl">Preprocessed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 5 -->
+    <div class="top5-block">
+      <div class="block-title">Top 5 Predictions</div>
+      <div class="top5-list" id="top5List"></div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-block">
+      <div class="block-title">Model Metrics <span class="step-tag">Step 3b</span></div>
+      <div class="metrics-grid" id="metricsGrid">
+        <div class="metric-cell"><span class="mc-val" id="mAcc">—</span><span class="mc-lbl">Accuracy</span></div>
+        <div class="metric-cell"><span class="mc-val" id="mPrec">—</span><span class="mc-lbl">Precision</span></div>
+        <div class="metric-cell"><span class="mc-val" id="mRec">—</span><span class="mc-lbl">Recall</span></div>
+        <div class="metric-cell"><span class="mc-val" id="mF1">—</span><span class="mc-lbl">F1-Score</span></div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-block">
+      <div class="block-title">Visualizations <span class="step-tag">Step 2–3</span></div>
+
+      <div class="chart-card">
+        <div class="chart-card-title">Pixel Distribution — Before / After Preprocessing</div>
+        <img class="chart-img" id="chartPixel" alt="pixel distribution"/>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-title">Training Curves</div>
+        <img class="chart-img" id="chartTraining" alt="training curves"/>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-title">Model Comparison</div>
+        <img class="chart-img" id="chartModelCompare" alt="model comparison"/>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-title">Preprocessing Variations</div>
+        <img class="chart-img" id="chartPreprocCompare" alt="preprocessing comparison"/>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-title">Dataset Class Distribution</div>
+        <img class="chart-img" id="cDist" alt="class distribution"/>
+      </div>
+    </div>
+
+  </div>
+</div>

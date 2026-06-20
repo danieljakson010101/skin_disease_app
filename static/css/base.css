@@ -1,0 +1,32 @@
+:root {
+  --cream:#faf8f4; --paper:#f4f0e8; --white:#ffffff;
+  --ink:#1a1612; --ink2:#3d3530; --ink3:#6b6059;
+  --rust:#c4572a; --rust-light:#f0e4dc; --rust-dim:rgba(196,87,42,.12);
+  --sage:#3d6b5a; --sage-light:#e4efe9;
+  --border:#e2ddd6; --border2:#ccc4b8;
+  --shadow:0 1px 3px rgba(26,22,18,.06), 0 4px 16px rgba(26,22,18,.08);
+  --shadow-lg:0 8px 32px rgba(26,22,18,.12);
+  --r:10px; --r-sm:6px;
+  --ff-head:'Playfair Display', Georgia, serif;
+  --ff-body:'Outfit', system-ui, sans-serif;
+  --ff-mono:'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0 }
+html { scroll-behavior:smooth }
+body {
+  background:var(--cream);
+  color:var(--ink);
+  font-family:var(--ff-body);
+  font-weight:400;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width:5px; height:5px }
+::-webkit-scrollbar-track { background:var(--paper) }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px }
+
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes spin  { to { transform:rotate(360deg) } }

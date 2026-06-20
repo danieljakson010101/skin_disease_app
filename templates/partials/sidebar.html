@@ -1,0 +1,78 @@
+<div>
+  <!-- Train -->
+  <div class="train-box">
+    <div class="train-box-title"><span class="ico">⚡</span> Train on Your Dataset</div>
+    <div class="train-path">
+      Place dataset at:<br/>
+      <span>skin_disease_app / dataset / train /</span><br/>
+      &nbsp;&nbsp;├─ Acne / *.jpg<br/>
+      &nbsp;&nbsp;├─ Eczema / *.jpg<br/>
+      &nbsp;&nbsp;└─ … (22 folders)
+    </div>
+    <div class="train-progress"><div class="train-bar" id="trainBar"></div></div>
+    <div class="train-log" id="trainLog"></div>
+    <div class="alert warn" id="trainAlert"></div>
+    <button class="btn btn-train" id="trainBtn">Train Model on Dataset</button>
+  </div>
+
+  <!-- Upload -->
+  <div class="panel">
+    <div class="panel-title">Upload Image <span class="step-tag">Step 1–2</span></div>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.bmp,.webp"/>
+      <span class="dz-icon">📂</span>
+      <p class="dz-text"><strong>Click or drag</strong> a skin image here</p>
+      <p class="dz-hint">JPG · PNG · BMP · WEBP · max 16 MB</p>
+    </div>
+    <div class="preview-wrap" id="prevWrap">
+      <img id="origPrev" alt="preview"/>
+    </div>
+
+    <div class="field" style="margin-top:18px">
+      <label>Model <span style="opacity:.6">(Step 3)</span></label>
+      <select id="model">
+        <option value="cnn">CNN Proxy — HOG + Color features</option>
+        <option value="svm">SVM — HOG descriptor</option>
+        <option value="rf">Random Forest — LBP features</option>
+        <option value="knn">KNN — Color hist + LBP</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Enhancement <span style="opacity:.6">(Step 2a)</span></label>
+      <select id="enhancement">
+        <option value="clahe">CLAHE — adaptive histogram equalization</option>
+        <option value="hist">Global histogram equalization</option>
+        <option value="gaussian">Gaussian blur — noise reduction</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Normalization <span style="opacity:.6">(Step 2a)</span></label>
+      <select id="normalization">
+        <option value="minmax">Min-Max [0, 1]</option>
+        <option value="zscore">Z-score (μ=0, σ=1)</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Augmentation <span style="opacity:.6">(Step 2a)</span></label>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="aug_flip"> H-Flip</label>
+        <label class="toggle"><input type="checkbox" id="aug_rotate" checked> Rotation ±15°</label>
+        <label class="toggle"><input type="checkbox" id="aug_zoom"> Zoom</label>
+      </div>
+    </div>
+
+    <button class="btn btn-run" id="runBtn" disabled>
+      <div class="spinner"></div>
+      <span class="btn-txt">Run Analysis Pipeline</span>
+    </button>
+    <div class="alert error" id="errAlert"></div>
+    <div class="alert info"  id="infoAlert"></div>
+    <div class="log-panel"   id="logPanel"></div>
+  </div>
+</div>
